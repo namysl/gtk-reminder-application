@@ -1,0 +1,2 @@
+5 0 Wednesday Sunny
+6 2 Thursday Wet
