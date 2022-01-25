@@ -529,7 +529,6 @@ void show_info_toolb(GtkWidget *widget, gpointer data){
 }
 
 
-
 int main(int argc, char *argv[]){
     GtkWidget *window;
     GdkPixbuf *icon;
@@ -558,7 +557,7 @@ int main(int argc, char *argv[]){
     //tytul na pasku okna
     gtk_window_set_title(GTK_WINDOW(window), "Przypominacz");
     //rozmiar i umiejscowienie okna programu
-    gtk_window_set_default_size(GTK_WINDOW(window), 700, 500);
+    gtk_window_set_default_size(GTK_WINDOW(window), 500, 300);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     //ikona programu
     icon = create_pixbuf("ikona.jpeg");
