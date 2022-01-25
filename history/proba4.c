@@ -24,11 +24,93 @@ enum{
     COLUMN_DATE,
     COLUMN_TIME,
     COLUMN_DESCRIPTION,
-    COLUMN_ACTIVE,
-    COLUMN_SENSITIVE,
+//    COLUMN_ACTIVE,
+//    COLUMN_SENSITIVE,
     NUM_COLUMNS
 
 };
+
+
+int validate_date(const char *y, const char *M, const char *d){
+    //check if chosen day exists
+    int yy = atoi(y);
+    int mm = atoi(M);
+    int dd = atoi(d);
+
+    if((dd>=1 && dd<=31) && (mm==1 || mm==3 || mm==5 || mm==7 || mm==8 || mm==10 || mm==12)){
+        printf("Jan Mar May July Aug Oct Dec.\n");
+        return 0;
+    }
+    else if((dd>=1 && dd<=30) && (mm==4 || mm==6 || mm==9 || mm==11)){
+        printf("Apr Jun Sep Nov.\n");
+        return 0;
+    }
+    else if((dd>=1 && dd<=28) && (mm==2)){
+        printf("Luty nieprzestepny.\n");
+        return 0;
+    }
+    else if(dd==29 && mm==2 && (yy%400==0 || (yy%4==0 && yy%100!=0))){
+        printf("Luty przestepny.\n");
+        return 0;
+    }
+    else{
+        printf("Day is invalid.\n");
+        return 1;
+    }
+}
+
+
+int local_datetime(char choice){
+    time_t T = time(NULL);
+    struct tm tm = *localtime(&T);
+
+    //printf("System Date is: %02d/%02d/%04d\n", tm.tm_mday, tm.tm_mon+1, tm.tm_year+1900);
+    //printf("System Time is: %02d:%02d:%02d\n", tm.tm_hour, tm.tm_min, tm.tm_sec);
+    int result;
+
+    switch(choice){
+        case 'd':
+            result = tm.tm_mday;
+            break;
+        case 'M':
+            result = tm.tm_mon+1;
+            break;
+        case 'y':
+            result = tm.tm_year+1900;
+            break;
+        case 'h':
+            result = tm.tm_hour;
+            break;
+        case 'm':
+            result = tm.tm_min;
+            break;
+    }
+
+    return result;
+}
+
+
+int validate_localdatetime(const char *y, const char *M, const char *d,
+                           const char *h, const char *m){
+    int yy = atoi(y);
+    int MM = atoi(M);
+    int dd = atoi(d);
+    int hh = atoi(h);
+    int mm = atoi(m);
+
+    if ((local_datetime('y') <= yy)
+        && (local_datetime('M') <= MM)
+        && (local_datetime('d') <= dd)
+        && (local_datetime('h') <= hh)
+        && (local_datetime('m') <= mm) ){
+        printf("OK\n");
+        return 0;
+     }
+     else{
+        printf("NIE!\n");
+        return 1;
+     }
+}
 
 
 int load_from_file(){
@@ -97,27 +179,28 @@ GtkTreeModel *create_model(void){
     store = gtk_list_store_new(NUM_COLUMNS,
                                G_TYPE_STRING,
                                G_TYPE_STRING,
-                               G_TYPE_STRING,
-                               G_TYPE_BOOLEAN,
-                               G_TYPE_BOOLEAN);
+                               G_TYPE_STRING);
+ //                              G_TYPE_BOOLEAN,
+ //                              G_TYPE_BOOLEAN);
 
     int count = load_from_file();
     for (i=0; i<count; i++){
 
+    /*
         gboolean sensitive;
 
         if (i==3)
             sensitive = FALSE;
         else
             sensitive = TRUE;
-
+    */
         gtk_list_store_append(store, &iter);
         gtk_list_store_set(store, &iter,
                            COLUMN_DATE, record[i].date,
                            COLUMN_TIME, record[i].time,
                            COLUMN_DESCRIPTION, record[i].description,
-                           COLUMN_ACTIVE, FALSE,
-                           COLUMN_SENSITIVE, sensitive,
+                           //COLUMN_ACTIVE, FALSE,
+                           //COLUMN_SENSITIVE, sensitive,
                            -1);
     }
 
@@ -151,7 +234,8 @@ void add_columns(GtkTreeView *treeview){
                                                       NULL);
 
     gtk_tree_view_column_set_fixed_width(GTK_TREE_VIEW_COLUMN(column), 100);
-    gtk_tree_view_column_set_sort_column_id(column, COLUMN_TIME);
+    //sortowanie zwalone
+    //gtk_tree_view_column_set_sort_column_id(column, COLUMN_TIME);
     gtk_tree_view_append_column(treeview, column);
 
     //kolumna opisu wydarzenia
@@ -183,37 +267,8 @@ GdkPixbuf *create_pixbuf(const gchar *filename) {
 }
 
 
-int local_datetime(char choice){
-    time_t T = time(NULL);
-    struct tm tm = *localtime(&T);
 
-    //printf("System Date is: %02d/%02d/%04d\n", tm.tm_mday, tm.tm_mon+1, tm.tm_year+1900);
-    //printf("System Time is: %02d:%02d:%02d\n", tm.tm_hour, tm.tm_min, tm.tm_sec);
-    int result;
-
-    switch(choice){
-        case 'd':
-            result = tm.tm_mday;
-            break;
-        case 'M':
-            result = tm.tm_mon+1;
-            break;
-        case 'y':
-            result = tm.tm_year+1900;
-            break;
-        case 'h':
-            result = tm.tm_hour;
-            break;
-        case 'm':
-            result = tm.tm_min;
-            break;
-    }
-
-    return result;
-}
-
-
-void OK_clicked(GtkWidget *widget, gint response_id, gpointer data){
+void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
     if(response_id==-5){
         const char *describe, *y, *M, *d, *h, *m;
 
@@ -232,14 +287,20 @@ void OK_clicked(GtkWidget *widget, gint response_id, gpointer data){
             exit(EXIT_FAILURE);
         }
         else{
-            fprintf(filehandle, "%s %s %s %s %s %s\n", y, M, d, h, m, describe);
-            fclose(filehandle);
-            printf("Zapisano");
+            if ((validate_date(y, M, d)==0) && (validate_localdatetime(y, M, d, h, m))==0){
+                fprintf(filehandle, "%s %s %s %s %s %s\n", y, M, d, h, m, describe);
+                fclose(filehandle);
+                printf("Zapisano\n");
+            }
+            else{
+                printf("Nieprawidlowa data lub czas z przeszlosci\n");
+            }
         }
     }
     else{
-        printf("Anulowano");
+        printf("Anulowano\n");
     }
+
 
     load_from_file();
     // co dalej???
@@ -329,7 +390,7 @@ void show_add_toolb(GtkWindow *parent, gpointer user_data){
 
 
     g_signal_connect_swapped(dialog, "response",
-                             G_CALLBACK(OK_clicked), dialog);
+                             G_CALLBACK(add_new_entry), dialog);
 
     gtk_widget_show_all(hbox);
     response = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -362,7 +423,7 @@ void show_edit_toolb(GtkWindow *parent, gchar *message){
 }
 
 
-void quick_message (GtkWindow *parent, char *message){
+void show_options_toolb(GtkWindow *parent, char *message){
     GtkWidget *dialog, *label, *content_area;
     GtkDialogFlags flags;
 
@@ -403,6 +464,7 @@ void show_info_toolb(GtkWidget *widget, gpointer data){
     gtk_widget_destroy(dialog);
 
 }
+
 
 
 int main(int argc, char *argv[]){
@@ -493,6 +555,7 @@ int main(int argc, char *argv[]){
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_box_pack_start(GTK_BOX(box), sw, TRUE, TRUE, 0);
 
+
     //create tree model
     model = create_model();
 
@@ -516,7 +579,7 @@ int main(int argc, char *argv[]){
                      G_CALLBACK(show_edit_toolb), NULL);
 
     g_signal_connect(G_OBJECT(options_toolb), "clicked",
-                     G_CALLBACK(quick_message), NULL);
+                     G_CALLBACK(show_options_toolb), NULL);
 
     g_signal_connect(G_OBJECT(info_toolb), "clicked",
                      G_CALLBACK(show_info_toolb), NULL);// (gpointer) window);
