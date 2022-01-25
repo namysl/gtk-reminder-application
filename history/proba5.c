@@ -12,8 +12,8 @@ typedef struct{
     int y, M, d;
     int h, m;
     char description[500];
-    char date[20];
-    char time[20];
+    char date[11]; //11
+    char time[6]; //6
 
 }event_struct;
 
@@ -29,35 +29,6 @@ enum{
     NUM_COLUMNS
 
 };
-
-
-int validate_date(const char *y, const char *M, const char *d){
-    //check if chosen day exists
-    int yy = atoi(y);
-    int mm = atoi(M);
-    int dd = atoi(d);
-
-    if((dd>=1 && dd<=31) && (mm==1 || mm==3 || mm==5 || mm==7 || mm==8 || mm==10 || mm==12)){
-        printf("Jan Mar May July Aug Oct Dec.\n");
-        return 0;
-    }
-    else if((dd>=1 && dd<=30) && (mm==4 || mm==6 || mm==9 || mm==11)){
-        printf("Apr Jun Sep Nov.\n");
-        return 0;
-    }
-    else if((dd>=1 && dd<=28) && (mm==2)){
-        printf("Luty nieprzestepny.\n");
-        return 0;
-    }
-    else if(dd==29 && mm==2 && (yy%400==0 || (yy%4==0 && yy%100!=0))){
-        printf("Luty przestepny.\n");
-        return 0;
-    }
-    else{
-        printf("Day is invalid.\n");
-        return 1;
-    }
-}
 
 
 int local_datetime(char choice){
@@ -90,6 +61,35 @@ int local_datetime(char choice){
 }
 
 
+int validate_date(const char *y, const char *M, const char *d){
+    //check if chosen day exists
+    int yy = atoi(y);
+    int mm = atoi(M);
+    int dd = atoi(d);
+
+    if((dd>=1 && dd<=31) && (mm==1 || mm==3 || mm==5 || mm==7 || mm==8 || mm==10 || mm==12)){
+        printf("Jan Mar May July Aug Oct Dec.\n");
+        return 0;
+    }
+    else if((dd>=1 && dd<=30) && (mm==4 || mm==6 || mm==9 || mm==11)){
+        printf("Apr Jun Sep Nov.\n");
+        return 0;
+    }
+    else if((dd>=1 && dd<=28) && (mm==2)){
+        printf("Luty nieprzestepny.\n");
+        return 0;
+    }
+    else if(dd==29 && mm==2 && (yy%400==0 || (yy%4==0 && yy%100!=0))){
+        printf("Luty przestepny.\n");
+        return 0;
+    }
+    else{
+        printf("Day is invalid.\n");
+        return 1;
+    }
+}
+
+
 int validate_localdatetime(const char *y, const char *M, const char *d,
                            const char *h, const char *m){
     int yy = atoi(y);
@@ -98,19 +98,39 @@ int validate_localdatetime(const char *y, const char *M, const char *d,
     int hh = atoi(h);
     int mm = atoi(m);
 
-    if ((local_datetime('y') <= yy)
-        && (local_datetime('M') <= MM)
-        && (local_datetime('d') <= dd)
-        && (local_datetime('h') <= hh)
-        && (local_datetime('m') <= mm) ){
-        printf("OK\n");
-        return 0;
-     }
-     else{
-        printf("NIE!\n");
-        return 1;
-     }
+    int value;
+    //przypadek yy < local_datetime('y') niepotrzebny
+    //(nie da sie wprowadzic roku mniejszego od local)
+    if(yy > local_datetime('y')){
+       value = 0;
+    }
+    else if(yy == local_datetime('y')){
+        if (MM < local_datetime('M')){
+            value = 1;
+        }
+        else if(MM > local_datetime('M')){
+            value = 0;
+        }
+        else{  // MM == local MM
+            if(dd < local_datetime('d')){
+                value = 1;
+            }
+            else if(dd > local_datetime('d')){
+                value = 0;
+            }
+            else{ //dd == local dd
+                if(mm < local_datetime('m')){
+                    value = 1;
+                }
+                else{ //mm <= local mm
+                    value = 0;
+                }
+            }
+        }
+    }
+    return value;
 }
+
 
 
 int load_from_file(){
@@ -119,41 +139,79 @@ int load_from_file(){
 
     //temporary variables
     char *item;
-    char str_date[50];
-    char str_time[50];
+    char str_date[10];
+    char str_time[5];
+    char str_temp[3];
 
     filehandle = fopen("baza_proba.txt","r");
 
     while(fgets(line, 550, filehandle)){
         str_date[0] = '\0';
         str_time[0] = '\0';
+        str_temp[0] = '\0';
 
         //DATE YYYY/MM/HH
         item = strtok(line, " ");
         record[count].y = atoi(item);
         strcat(str_date, item);
+
         strcat(str_date, "/");
 
         item = strtok(NULL, " ");
         record[count].M = atoi(item);
-        strcat(str_date, item);
+
+        if(strlen(item)==1){
+            str_temp[0] = '\0';
+            sprintf(str_temp, "%02d", atoi(item));
+            strcat(str_date, str_temp);
+        }
+        else{
+            strcat(str_date, item);
+        }
+
         strcat(str_date, "/");
 
         item = strtok(NULL, " ");
         record[count].d = atoi(item);
-        strcat(str_date, item);
+
+        if(strlen(item)==1){
+            str_temp[0] = '\0';
+            sprintf(str_temp, "%02d", atoi(item));
+            strcat(str_date, str_temp);
+        }
+        else{
+            strcat(str_date, item);
+        }
 
         strcpy(record[count].date, str_date);
 
         //TIME HH:MM
         item = strtok(NULL, " ");
         record[count].h = atoi(item);
-        strcat(str_time, item);
+
+        if(strlen(item)==1){
+            str_temp[0] = '\0';
+            sprintf(str_temp, "%02d", atoi(item));
+            strcat(str_time, str_temp);
+        }
+        else{
+            strcat(str_time, item);
+        }
+
         strcat(str_time, ":");
 
         item = strtok(NULL, " ");
         record[count].m = atoi(item);
-        strcat(str_time, item);
+
+        if(strlen(item)==1){
+            str_temp[0] = '\0';
+            sprintf(str_temp, "%02d", atoi(item));
+            strcat(str_time, str_temp);
+        }
+        else{
+            strcat(str_time, item);
+        }
+
         strcpy(record[count].time, str_time);
 
         //DESCRIPTION
@@ -221,7 +279,7 @@ void add_columns(GtkTreeView *treeview){
                                                       COLUMN_DATE,
                                                       NULL);
 
-    gtk_tree_view_column_set_fixed_width(GTK_TREE_VIEW_COLUMN(column), 100); //100px
+    gtk_tree_view_column_set_fixed_width(GTK_TREE_VIEW_COLUMN(column), 120); //120 px
     gtk_tree_view_column_set_sort_column_id(column, COLUMN_DATE);
     gtk_tree_view_append_column(treeview, column);
 
@@ -233,9 +291,9 @@ void add_columns(GtkTreeView *treeview){
                                                       COLUMN_TIME,
                                                       NULL);
 
-    gtk_tree_view_column_set_fixed_width(GTK_TREE_VIEW_COLUMN(column), 100);
+    gtk_tree_view_column_set_fixed_width(GTK_TREE_VIEW_COLUMN(column), 60);
     //sortowanie zwalone
-    //gtk_tree_view_column_set_sort_column_id(column, COLUMN_TIME);
+    gtk_tree_view_column_set_sort_column_id(column, COLUMN_TIME);
     gtk_tree_view_append_column(treeview, column);
 
     //kolumna opisu wydarzenia
@@ -273,6 +331,11 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
         const char *describe, *y, *M, *d, *h, *m;
 
         describe = gtk_entry_get_text(GTK_ENTRY(entry_describe));
+        if(strlen(describe)==0){
+            printf("PUSTY STRING!!!\n");
+            describe = " ";  //Nienazwane wydarzenie
+        }
+
         y = gtk_entry_get_text(GTK_ENTRY(entry_year));
         M = gtk_entry_get_text(GTK_ENTRY(entry_month));
         d = gtk_entry_get_text(GTK_ENTRY(entry_day));
