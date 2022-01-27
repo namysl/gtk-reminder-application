@@ -3,6 +3,8 @@
 #include <glib.h>
 #include <time.h>
 
+#define SIZE 30
+
 //static GtkWidget *window = NULL;
 
 FILE *filehandle;
@@ -18,7 +20,7 @@ typedef struct{
 
 }event_struct;
 
-event_struct record[30];
+event_struct record[SIZE];
 
 
 enum{
@@ -221,12 +223,13 @@ int load_from_file(){
 
         count++;
     }
-
+/*
     for(int i=0; i<=count; i++){
         puts(record[i].date);
         puts(record[i].time);
         puts(record[i].description);
     }
+*/
 
     fclose(filehandle);
 
@@ -328,6 +331,65 @@ GdkPixbuf *create_pixbuf(const gchar *filename) {
     }
 
     return pixbuf;
+}
+
+void fun(char *name_description){
+// ????? co wlasciwie ja robie
+        for(int j=0; j<=SIZE; j++){
+            if(strcmp(record[j].description, name_description)==0){
+                printf("%s %s OK\n\n", record[j].description, name_description);
+                break;
+            }
+            else{
+                printf("nie\n\n");
+                //printf("%s %s NIE\n\n", record[j].description, name_description);
+            }
+        }
+}
+
+
+void delete_entry(GtkWidget *widget, gpointer data){
+    GtkTreeIter iter;
+    GtkTreeView *treeview = (GtkTreeView*)data;
+    GtkTreeModel *model = gtk_tree_view_get_model(treeview);
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
+
+    char *name_date;
+    char *name_time;
+    char *name_description;
+
+    if (gtk_tree_selection_get_selected(selection, NULL, &iter)){
+        int i;
+
+        gtk_tree_model_get(model, &iter, COLUMN_DATE, &name_date, -1);
+        gtk_tree_model_get(model, &iter, COLUMN_TIME, &name_time, -1);
+        gtk_tree_model_get(model, &iter, COLUMN_DESCRIPTION, &name_description, -1);
+
+
+        GtkTreePath *path;
+
+        path = gtk_tree_model_get_path(model, &iter);
+        i = gtk_tree_path_get_indices(path)[0];
+        gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+
+        /*
+        //czyszczenie tablicy rekordow:
+        memset(record, 0, sizeof(record));
+
+        //tutaj usuwanie z pliku
+
+        //ponowne wypelnianie:
+        load_from_file();
+
+        //wypelnianie na nowo
+
+        */
+        gtk_tree_path_free(path);
+    }
+
+    printf("selected row is %s %s %s\n", name_date, name_time, name_description);
+    fun(name_description);
+
 }
 
 
@@ -674,6 +736,9 @@ int main(int argc, char *argv[]){
 
     g_signal_connect(G_OBJECT(edit_toolb), "clicked",
                      G_CALLBACK(show_edit_toolb), NULL);
+
+    g_signal_connect(G_OBJECT(delete_toolb), "clicked",
+                     G_CALLBACK(delete_entry), treeview);
 
     g_signal_connect(G_OBJECT(options_toolb), "clicked",
                      G_CALLBACK(show_options_toolb), NULL);
