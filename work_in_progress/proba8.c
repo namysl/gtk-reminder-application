@@ -65,7 +65,7 @@ int local_datetime(char choice){
 
 
 int validate_date(const char *y, const char *M, const char *d){
-    //check if chosen day exists
+    //czy istnieje taki dzien w miesiacu i/lub roku
     int yy = atoi(y);
     int mm = atoi(M);
     int dd = atoi(d);
@@ -148,88 +148,94 @@ int load_from_file(){
 
     filehandle = fopen("baza_proba.txt","r");
 
-    while(fgets(line, 550, filehandle)){
-        str_date[0] = '\0';
-        str_time[0] = '\0';
-        str_temp[0] = '\0';
-
-        //DATE YYYY/MM/HH
-        item = strtok(line, " ");
-        record[count].y = atoi(item);
-        strcat(str_date, item);
-
-        strcat(str_date, "/");
-
-        item = strtok(NULL, " ");
-        record[count].M = atoi(item);
-
-        if(strlen(item)==1){
+    if(filehandle){
+        while(fgets(line, 550, filehandle)){
+            str_date[0] = '\0';
+            str_time[0] = '\0';
             str_temp[0] = '\0';
-            sprintf(str_temp, "%02d", atoi(item));
-            strcat(str_date, str_temp);
-        }
-        else{
+
+            //DATE YYYY/MM/HH
+            item = strtok(line, " ");
+            record[count].y = atoi(item);
             strcat(str_date, item);
+
+            strcat(str_date, "/");
+
+            item = strtok(NULL, " ");
+            record[count].M = atoi(item);
+
+            if(strlen(item)==1){
+                str_temp[0] = '\0';
+                sprintf(str_temp, "%02d", atoi(item));
+                strcat(str_date, str_temp);
+            }
+            else{
+                strcat(str_date, item);
+            }
+
+            strcat(str_date, "/");
+
+            item = strtok(NULL, " ");
+            record[count].d = atoi(item);
+
+            if(strlen(item)==1){
+                str_temp[0] = '\0';
+                sprintf(str_temp, "%02d", atoi(item));
+                strcat(str_date, str_temp);
+            }
+            else{
+                strcat(str_date, item);
+            }
+
+            strcpy(record[count].date, str_date);
+
+            //TIME HH:MM
+            item = strtok(NULL, " ");
+            record[count].h = atoi(item);
+
+            if(strlen(item)==1){
+                str_temp[0] = '\0';
+                sprintf(str_temp, "%02d", atoi(item));
+                strcat(str_time, str_temp);
+            }
+            else{
+                strcat(str_time, item);
+            }
+
+            strcat(str_time, ":");
+
+            item = strtok(NULL, " ");
+            record[count].m = atoi(item);
+
+            if(strlen(item)==1){
+                str_temp[0] = '\0';
+                sprintf(str_temp, "%02d", atoi(item));
+                strcat(str_time, str_temp);
+            }
+            else{
+                strcat(str_time, item);
+            }
+
+            strcpy(record[count].time, str_time);
+
+            //DESCRIPTION
+            item = strtok(NULL, "\n");
+            strcpy(record[count].description, item);
+
+            count++;
         }
-
-        strcat(str_date, "/");
-
-        item = strtok(NULL, " ");
-        record[count].d = atoi(item);
-
-        if(strlen(item)==1){
-            str_temp[0] = '\0';
-            sprintf(str_temp, "%02d", atoi(item));
-            strcat(str_date, str_temp);
-        }
-        else{
-            strcat(str_date, item);
-        }
-
-        strcpy(record[count].date, str_date);
-
-        //TIME HH:MM
-        item = strtok(NULL, " ");
-        record[count].h = atoi(item);
-
-        if(strlen(item)==1){
-            str_temp[0] = '\0';
-            sprintf(str_temp, "%02d", atoi(item));
-            strcat(str_time, str_temp);
-        }
-        else{
-            strcat(str_time, item);
-        }
-
-        strcat(str_time, ":");
-
-        item = strtok(NULL, " ");
-        record[count].m = atoi(item);
-
-        if(strlen(item)==1){
-            str_temp[0] = '\0';
-            sprintf(str_temp, "%02d", atoi(item));
-            strcat(str_time, str_temp);
-        }
-        else{
-            strcat(str_time, item);
-        }
-
-        strcpy(record[count].time, str_time);
-
-        //DESCRIPTION
-        item = strtok(NULL, "\n");
-        strcpy(record[count].description, item);
-
-        count++;
     }
-/*
-    for(int i=0; i<=count; i++){
+    else{
+        printf("Blad otwarcia pliku");
+        exit(EXIT_FAILURE);
+    }
+
+    for(int i=0; i<=count-1; i++){
         puts(record[i].date);
         puts(record[i].time);
         puts(record[i].description);
+        printf("%d\n", i);
     }
-*/
 
     fclose(filehandle);
 
@@ -333,18 +339,24 @@ GdkPixbuf *create_pixbuf(const gchar *filename) {
     return pixbuf;
 }
 
-void fun(char *name_description){
+int find_in_struct(char *name_date, char *name_time, char *name_description){
 // ????? co wlasciwie ja robie
-        for(int j=0; j<=SIZE; j++){
-            if(strcmp(record[j].description, name_description)==0){
+        int j;
+        for(j=0; j<=SIZE; j++){
+            if((strcmp(record[j].description, name_description)==0)
+            && (strcmp(record[j].time, name_time)==0)
+            && (strcmp(record[j].date, name_date)==0)){
                 printf("%s %s OK\n\n", record[j].description, name_description);
+                printf("J: *%d*\n\n", j);
                 break;
+
             }
             else{
                 printf("nie\n\n");
                 //printf("%s %s NIE\n\n", record[j].description, name_description);
             }
         }
+        return j;
 }
 
 
@@ -372,13 +384,19 @@ void delete_entry(GtkWidget *widget, gpointer data){
         i = gtk_tree_path_get_indices(path)[0];
         gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
 
+
+        printf("selected row is %s %s %s\n", name_date, name_time, name_description);
+        int line = find_in_struct(name_date, name_time, name_description);
+        printf("FUN: %d\n", line);
+
         /*
         //czyszczenie tablicy rekordow:
         memset(record, 0, sizeof(record));
 
         //tutaj usuwanie z pliku
+        delete_from_file();
 
-        //ponowne wypelnianie:
+        //ponowne wypelnianie tablicy struktur:
         load_from_file();
 
         //wypelnianie na nowo
@@ -386,10 +404,6 @@ void delete_entry(GtkWidget *widget, gpointer data){
         */
         gtk_tree_path_free(path);
     }
-
-    printf("selected row is %s %s %s\n", name_date, name_time, name_description);
-    fun(name_description);
-
 }
 
 
