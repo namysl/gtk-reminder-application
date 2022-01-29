@@ -81,23 +81,23 @@ int validate_date(const char *y, const char *M, const char *d){
     int dd = atoi(d);
 
     if((dd>=1 && dd<=31) && (mm==1 || mm==3 || mm==5 || mm==7 || mm==8 || mm==10 || mm==12)){
-        printf("Jan Mar May July Aug Oct Dec.\n");
+        //printf("Jan Mar May July Aug Oct Dec.\n");
         return 0;
     }
     else if((dd>=1 && dd<=30) && (mm==4 || mm==6 || mm==9 || mm==11)){
-        printf("Apr Jun Sep Nov.\n");
+        //printf("Apr Jun Sep Nov.\n");
         return 0;
     }
     else if((dd>=1 && dd<=28) && (mm==2)){
-        printf("Luty nieprzestepny.\n");
+        //printf("Luty nieprzestepny.\n");
         return 0;
     }
     else if(dd==29 && mm==2 && (yy%400==0 || (yy%4==0 && yy%100!=0))){
-        printf("Luty przestepny.\n");
+        //printf("Luty przestepny.\n");
         return 0;
     }
     else{
-        printf("Day is invalid.\n");
+        //printf("Day is invalid.\n");
         return 1;
     }
 }
@@ -194,7 +194,8 @@ int check_localdatetime(const char *y, const char *M, const char *d,
 }
 
 
-void event_alert(unsigned i){
+
+void event_alert2(unsigned i){
     notify_init("Przypominacz");
 	NotifyNotification *info = notify_notification_new("Nadchodzące wydarzenie:", record[i].description, "face-kiss");
 	notify_notification_show(info, NULL);
@@ -202,12 +203,42 @@ void event_alert(unsigned i){
 	notify_uninit();
 }
 
+void event_alert(unsigned i)
+{
+    // This creates (but does not yet display) a message dialog with
+    // the given text as the title.
+    GtkWidget* hello = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
+                                              GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+                                              "Nadchodzące wydarzenie:");
+
+    // The (optional) secondary text shows up in the "body" of the
+    // dialog. Note that printf-style formatting is available.
+
+
+    gtk_message_dialog_format_secondary_text(
+        GTK_MESSAGE_DIALOG(hello),
+        "%s\n%s\n%s", record[i].description, record[i].date, record[i].time);
+
+    // This displays our message dialog as a modal dialog, waiting for
+    // the user to click a button before moving on. The return value
+    // comes from the :response signal emitted by the dialog. By
+    // default, the dialog only has an OK button, so we'll get a
+    // GTK_RESPONSE_OK if the user clicked the button. But if the user
+    // destroys the window, we'll get a GTK_RESPONSE_DELETE_EVENT.
+    int response = gtk_dialog_run(GTK_DIALOG(hello));
+
+    printf("response was %d (OK=%d, DELETE_EVENT=%d)\n",
+           response, GTK_RESPONSE_OK, GTK_RESPONSE_DELETE_EVENT);
+
+    // If we don't destroy the dialog here, it will still be displayed
+    // (in back) when the second dialog below is run.
+    gtk_widget_destroy(hello);
+}
 
 static gboolean on_timeout(gpointer user_data){
     static unsigned f_times = 0;
 
     ++f_times;
-    puts("Ile minut już działa:");
     printf("%d\n", f_times);
 
 
@@ -320,14 +351,14 @@ int load_from_file(){
         printf("Blad otwarcia pliku");
         exit(EXIT_FAILURE);
     }
-
+/*
     for(int i=0; i<=count-1; i++){
         puts(record[i].date);
         puts(record[i].time);
         puts(record[i].description);
         printf("%d\n", i);
     }
-
+*/
     fclose(filehandle);
 
     return count;
@@ -437,13 +468,12 @@ int find_in_struct(char *name_date, char *name_time, char *name_description){
             if((strcmp(record[j].description, name_description)==0)
             && (strcmp(record[j].time, name_time)==0)
             && (strcmp(record[j].date, name_date)==0)){
-                printf("%s %s OK\n\n", record[j].description, name_description);
-                printf("J: *%d*\n\n", j);
+                //printf("%s %s OK\n\n", record[j].description, name_description);
+                //printf("J: *%d*\n\n", j);
                 break;
 
             }
             else{
-                printf("nie\n\n");
                 //printf("%s %s NIE\n\n", record[j].description, name_description);
             }
         }
@@ -476,9 +506,9 @@ void delete_entry(GtkWidget *widget, gpointer data){
         gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
 
 
-        printf("selected row is %s %s %s\n", name_date, name_time, name_description);
+        //printf("selected row is %s %s %s\n", name_date, name_time, name_description);
         int line = find_in_struct(name_date, name_time, name_description);
-        printf("FUN: %d\n", line);
+        //printf("FUN: %d\n", line);
 
         //czyszczenie tablicy rekordow:
         memset(record, 0, sizeof(record));
@@ -555,7 +585,6 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
                 notification("Przypominacz:", "nowe wydarzenie zostało zapisane.", "emblem-default");
             }
             else{
-                printf("Nieprawidlowa data lub czas z przeszlosci\n");
                 notification("Wydarzenie nie mogło zostać zapisane,", "ponieważ podano nieprawidłową datę lub czas.", "emblem-important");
             }
         }
@@ -815,7 +844,7 @@ int main(int argc, char *argv[]){
     add_columns(GTK_TREE_VIEW(treeview));
 
 
-    g_timeout_add(60000, on_timeout, NULL);
+    g_timeout_add(1000, on_timeout, NULL);
 
     //sygnały
     g_signal_connect(G_OBJECT(add_toolb), "clicked",
