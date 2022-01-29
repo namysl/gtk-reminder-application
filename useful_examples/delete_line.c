@@ -8,37 +8,14 @@
 #define BUFFER_SIZE 1000
 
 
-/**
- * Function to delete a given line from file.
- */
-void deleteLine(FILE *srcFile, FILE *tempFile, const int line)
-{
-    char buffer[BUFFER_SIZE];
-    int count = 0;
-
-    while ((fgets(buffer, BUFFER_SIZE, srcFile)) != NULL)
-    {
-        /* If current line is not the line user wanted to remove */
-        if (line != count)
-            fputs(buffer, tempFile);
-
-        count++;
-    }
-}
-
-
 int main()
 {
     FILE *srcFile;
     FILE *tempFile;
 
-    char path[100];
+    char *path = "baza_proba.txt";
 
     int line;
-
-    /* Input file path and line number */
-    printf("Enter file path: ");
-    scanf("%s", path);
 
     printf("Enter line number to remove: ");
     scanf("%d", &line);
@@ -63,8 +40,17 @@ int main()
     rewind(srcFile);
 
     // Delete given line from file.
-    deleteLine(srcFile, tempFile, line);
+    char buffer[BUFFER_SIZE];
+    int count = 0;
 
+    while ((fgets(buffer, BUFFER_SIZE, srcFile)) != NULL)
+    {
+        /* If current line is not the line user wanted to remove */
+        if (line != count)
+            fputs(buffer, tempFile);
+
+        count++;
+    }
 
     /* Close all open files */
     fclose(srcFile);

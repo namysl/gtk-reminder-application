@@ -93,6 +93,55 @@ int validate_date(const char *y, const char *M, const char *d){
 }
 
 
+int delete_line(int line){
+    FILE *source_file;
+    FILE *temp_file;
+
+    char *path = "baza_proba.txt";
+
+    /* Try to open file */
+    source_file  = fopen(path, "r");
+    temp_file = fopen("temp_baza.tmp", "w");
+
+
+    /* Exit if file not opened successfully */
+    if(source_file == NULL || temp_file == NULL)
+    {
+        printf("Unable to open file.\n");
+        printf("Please check you have read/write previleges.\n");
+
+        exit(EXIT_FAILURE);
+    }
+
+    // Move src file pointer to beginning
+    rewind(source_file);
+
+    // Delete given line from file.
+    char buffer[1000];
+    int count = 0;
+
+    while((fgets(buffer, 1000, source_file)) != NULL)
+    {
+        /* If current line is not the line user wanted to remove */
+        if (line != count)
+            fputs(buffer, temp_file);
+
+        count++;
+    }
+
+    /* Close all open files */
+    fclose(source_file);
+    fclose(temp_file);
+
+
+    /* Delete src file and rename temp file as src */
+    remove(path);
+    rename("temp_baza.tmp", path);
+
+    return 0;
+}
+
+
 int validate_localdatetime(const char *y, const char *M, const char *d,
                            const char *h, const char *m){
     int yy = atoi(y);
@@ -389,19 +438,17 @@ void delete_entry(GtkWidget *widget, gpointer data){
         int line = find_in_struct(name_date, name_time, name_description);
         printf("FUN: %d\n", line);
 
-        /*
         //czyszczenie tablicy rekordow:
         memset(record, 0, sizeof(record));
 
         //tutaj usuwanie z pliku
-        delete_from_file();
+        delete_line(line);
 
         //ponowne wypelnianie tablicy struktur:
         load_from_file();
 
         //wypelnianie na nowo
 
-        */
         gtk_tree_path_free(path);
     }
 }
@@ -459,7 +506,7 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
             exit(EXIT_FAILURE);
         }
         else{
-            if ((validate_date(y, M, d)==0) && (validate_localdatetime(y, M, d, h, m))==0){
+            if((validate_date(y, M, d)==0) && (validate_localdatetime(y, M, d, h, m))==0){
                 fprintf(filehandle, "%s %s %s %s %s %s\n", y, M, d, h, m, describe);
                 fclose(filehandle);
                 printf("Zapisano\n");
