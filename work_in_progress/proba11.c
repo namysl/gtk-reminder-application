@@ -129,10 +129,10 @@ int delete_line(int line, char *path){
     rewind(source_file);
 
     // Delete given line from file.
-    char buffer[1000];
+    char buffer[FILESIZE];
     int count = 0;
 
-    while((fgets(buffer, 1000, source_file)) != NULL)
+    while((fgets(buffer, FILESIZE, source_file)) != NULL)
     {
         /* If current line is not the line user wanted to remove */
         if (line != count)
@@ -301,7 +301,7 @@ static gboolean on_timeout(gpointer user_data){
 }
 
 int load_from_file(){
-    char line[550];
+    char line[FILESIZE];
     int count = 0;  //number of records
 
     //temporary variables
@@ -312,7 +312,7 @@ int load_from_file(){
 
     filehandle = fopen("baza_clicked.txt", "r");
     if(filehandle){
-        while(fgets(line, 550, filehandle)){
+        while(fgets(line, FILESIZE, filehandle)){
             //clicked
             item = strtok(line, "\n");
             record[count].clicked = atoi(item);
@@ -332,7 +332,7 @@ int load_from_file(){
     filehandle = fopen("baza_proba.txt","r");
 
     if(filehandle){
-        while(fgets(line, 550, filehandle)){
+        while(fgets(line, FILESIZE, filehandle)){
             str_date[0] = '\0';
             str_time[0] = '\0';
             str_temp[0] = '\0';
@@ -429,7 +429,6 @@ int load_from_file(){
 
 
 GtkTreeModel *create_model(void){
-
     gint i = 0;
     GtkListStore *store;
     GtkTreeIter iter;
@@ -527,7 +526,7 @@ GdkPixbuf *create_pixbuf(const gchar *filename) {
 int find_in_struct(char *name_date, char *name_time, char *name_description){
 // ????? co wlasciwie ja robie
         int j;
-        for(j=0; j<=SIZE; j++){
+        for(j=0; j<=STRUCTSIZE; j++){
             if((strcmp(record[j].description, name_description)==0)
             && (strcmp(record[j].time, name_time)==0)
             && (strcmp(record[j].date, name_date)==0)){
