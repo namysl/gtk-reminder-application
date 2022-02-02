@@ -1,27 +1,26 @@
+#include <gtk/gtk.h>
 #include <stdio.h>
 #include <glib.h>
 #include <time.h>
-#include <gtk/gtk.h>
 #include <libnotify/notify.h>
 
-#define STRUCTSIZE 50
-#define BUFSIZE 1000
+#define STRUCTSIZE 30
+#define FILESIZE 1000
 
 
 FILE *filehandle;
 FILE *filehandle2;
 GtkWidget *treeview;
 GtkWidget *entry_describe, *entry_day, *entry_month, *entry_year, *entry_hour, *entry_minutes;
-int num_of_entries;  //aktualizowane przez load_from_file()
-
 
 typedef struct{
     int y, M, d;
     int h, m;
-    char description[100];
-    char date[11];
-    char time[6];
-    int displayed;
+    char description[500];
+    char date[11]; //11
+    char time[6]; //6
+    int clicked;
+
 }event_struct;
 
 event_struct record[STRUCTSIZE];
@@ -31,14 +30,16 @@ enum{
     COLUMN_DATE,
     COLUMN_TIME,
     COLUMN_DESCRIPTION,
+//    COLUMN_ACTIVE,
+//    COLUMN_SENSITIVE,
     NUM_COLUMNS
+
 };
 
 
 void notification(char *message1, char *message2, char *icon){
-    //krotkie powiadomienia
 	notify_init("Przypominacz");
-	NotifyNotification *info = notify_notification_new(message1, message2, icon);
+	NotifyNotification *info = notify_notification_new (message1, message2, icon);
 	notify_notification_show(info, NULL);
 	g_object_unref(G_OBJECT(info));
 	notify_uninit();
@@ -46,10 +47,11 @@ void notification(char *message1, char *message2, char *icon){
 
 
 int local_datetime(char choice){
-    //czas lokalny
     time_t T = time(NULL);
     struct tm tm = *localtime(&T);
 
+    //printf("System Date is: %02d/%02d/%04d\n", tm.tm_mday, tm.tm_mon+1, tm.tm_year+1900);
+    //printf("System Time is: %02d:%02d:%02d\n", tm.tm_hour, tm.tm_min, tm.tm_sec);
     int result;
 
     switch(choice){
@@ -81,53 +83,70 @@ int validate_date(const char *y, const char *M, const char *d){
     int dd = atoi(d);
 
     if((dd>=1 && dd<=31) && (mm==1 || mm==3 || mm==5 || mm==7 || mm==8 || mm==10 || mm==12)){
+        //printf("Jan Mar May July Aug Oct Dec.\n");
         return 0;
     }
     else if((dd>=1 && dd<=30) && (mm==4 || mm==6 || mm==9 || mm==11)){
+        //printf("Apr Jun Sep Nov.\n");
         return 0;
     }
     else if((dd>=1 && dd<=28) && (mm==2)){
+        //printf("Luty nieprzestepny.\n");
         return 0;
     }
     else if(dd==29 && mm==2 && (yy%400==0 || (yy%4==0 && yy%100!=0))){
+        //printf("Luty przestepny.\n");
         return 0;
     }
     else{
-        //nieprawidlowa data
+        //printf("Day is invalid.\n");
         return 1;
     }
 }
 
 
 int delete_line(int line, char *path){
-    //usuwa wybrana linie z pliku
     FILE *source_file;
     FILE *temp_file;
 
+    //char *path = "baza_proba.txt";
+
+    /* Try to open file */
     source_file  = fopen(path, "r");
     temp_file = fopen("temp_baza.tmp", "w");
 
-    if(source_file == NULL || temp_file == NULL){
-        printf("Blad otwarcia pliku");
+
+    /* Exit if file not opened successfully */
+    if(source_file == NULL || temp_file == NULL)
+    {
+        printf("Unable to open file.\n");
+        printf("Please check you have read/write previleges.\n");
+
         exit(EXIT_FAILURE);
     }
 
+    // Move src file pointer to beginning
     rewind(source_file);
 
-    char buffer[BUFSIZE];
+    // Delete given line from file.
+    char buffer[FILESIZE];
     int count = 0;
 
-    while((fgets(buffer, BUFSIZE, source_file)) != NULL)
+    while((fgets(buffer, FILESIZE, source_file)) != NULL)
     {
-        if (line != count){ //to nie jest poszukiwana linia
+        /* If current line is not the line user wanted to remove */
+        if (line != count)
             fputs(buffer, temp_file);
-        }
+
         count++;
     }
 
+    /* Close all open files */
     fclose(source_file);
     fclose(temp_file);
 
+
+    /* Delete src file and rename temp file as src */
     remove(path);
     rename("temp_baza.tmp", path);
 
@@ -135,31 +154,36 @@ int delete_line(int line, char *path){
 }
 
 
-int check_localdatetime(int y, int M, int d, int h, int m){
-    //sprawdza podany czas wzgledem czasu lokalnego
-    //zwraca 1, jesli sprawdzany czas jest starszy od lokalnego
-    int value = 1;
+int check_localdatetime(const char *y, const char *M, const char *d,
+                        const char *h, const char *m){
+    int yy = atoi(y);
+    int MM = atoi(M);
+    int dd = atoi(d);
+    int hh = atoi(h);
+    int mm = atoi(m);
 
-    //przypadku y < local_datetime('y') nie da sie wprowadzic z poziomu gui
-    if(y > local_datetime('y')){
+    int value;
+    //przypadek yy < local_datetime('y') niepotrzebny
+    //(nie da sie wprowadzic roku mniejszego od local)
+    if(yy > local_datetime('y')){
        value = 0;
     }
-    else if(y == local_datetime('y')){
-        if (M < local_datetime('M')){
+    else if(yy == local_datetime('y')){
+        if (MM < local_datetime('M')){
             value = 1;
         }
-        else if(M > local_datetime('M')){
+        else if(MM > local_datetime('M')){
             value = 0;
         }
         else{  // MM == local MM
-            if(d < local_datetime('d')){
+            if(dd < local_datetime('d')){
                 value = 1;
             }
-            else if(d > local_datetime('d')){
+            else if(dd > local_datetime('d')){
                 value = 0;
             }
             else{ //dd == local dd
-                if(m < local_datetime('m')){
+                if(mm < local_datetime('m')){
                     value = 1;
                 }
                 else{ //mm <= local mm
@@ -172,12 +196,20 @@ int check_localdatetime(int y, int M, int d, int h, int m){
 }
 
 
+void event_alert2(unsigned i){
+    notify_init("Przypominacz");
+	NotifyNotification *info = notify_notification_new("Nadchodzące wydarzenie:", record[i].description, "face-kiss");
+	notify_notification_show(info, NULL);
+	g_object_unref(G_OBJECT(info));
+	notify_uninit();
+}
+
+
 int replace_line(int line, char *path, char *new_info){
-    //zastepuje wybrana linie w pliku przez nowa
     FILE *source_file;
     FILE *temp_file;
 
-    char buffer[BUFSIZE];
+    char buffer[1000];
     int count = 0;
 
     source_file  = fopen(path, "r");
@@ -189,7 +221,7 @@ int replace_line(int line, char *path, char *new_info){
         exit(EXIT_FAILURE);
     }
 
-    while((fgets(buffer, BUFSIZE, source_file)) != NULL){
+    while((fgets(buffer, 1000, source_file)) != NULL){
         if(count == line){
             fputs(new_info, temp_file);
         }
@@ -209,53 +241,70 @@ int replace_line(int line, char *path, char *new_info){
 }
 
 
-void event_alert(unsigned i, char* text){
-    //okno dialogu z alertem o nadchodzacym wydarzeniu
-    GtkWidget* event = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
+void event_alert(unsigned i)
+{
+    // This creates (but does not yet display) a message dialog with
+    // the given text as the title.
+    GtkWidget* hello = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
                                               GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
-                                              "%s", text);
+                                              "Nadchodzące wydarzenie:");
 
-    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(event),
-                                             "%s\n\n%s, %s", record[i].description, record[i].date, record[i].time);
+    // The (optional) secondary text shows up in the "body" of the
+    // dialog. Note that printf-style formatting is available.
 
-    int response = gtk_dialog_run(GTK_DIALOG(event));
+
+    gtk_message_dialog_format_secondary_text(
+        GTK_MESSAGE_DIALOG(hello),
+        "%s\n%s\n%s", record[i].description, record[i].date, record[i].time);
+
+    // This displays our message dialog as a modal dialog, waiting for
+    // the user to click a button before moving on. The return value
+    // comes from the :response signal emitted by the dialog. By
+    // default, the dialog only has an OK button, so we'll get a
+    // GTK_RESPONSE_OK if the user clicked the button. But if the user
+    // destroys the window, we'll get a GTK_RESPONSE_DELETE_EVENT.
+    int response = gtk_dialog_run(GTK_DIALOG(hello));
 
     if(response==-5){
-        record[i].displayed = 1;
-        replace_line(i, "baza_clicked.txt", "1\n");  //0 -> 1
+        record[i].clicked = 1;
+        replace_line(i, "baza_clicked.txt", "1\n");
     }
 
-    gtk_widget_destroy(event);
+    printf("response was %d (OK=%d, DELETE_EVENT=%d)\n",
+           response, GTK_RESPONSE_OK, GTK_RESPONSE_DELETE_EVENT);
+
+    // If we don't destroy the dialog here, it will still be displayed
+    // (in back) when the second dialog below is run.
+    gtk_widget_destroy(hello);
 }
 
-static gboolean check_events(gpointer user_data){
-    //sprawdza status wydarzen
-    for(int i=0; i<num_of_entries; i++){
-        if(record[i].displayed != 1){
-            //czas wydarzenia == czas lokalny
-            if(record[i].y == local_datetime('y')
-            && record[i].M == local_datetime('M')
-            && record[i].d == local_datetime('d')
-            && record[i].h == local_datetime('h')
-            && record[i].m == local_datetime('m')){
-                event_alert(i, "Nadchodzące wydarzenie:");
-            }
+static gboolean on_timeout(gpointer user_data){
+    static unsigned f_times = 0;
 
-            //wydarzenie z przeszlosci, ktore nie zostalo odczytane
-            if(check_localdatetime(record[i].y, record[i].M, record[i].d, record[i].h, record[i].m) == 1){
-                event_alert(i, "Nieodczytane wydarzenie:");
-            }
+    ++f_times;
+    printf("%d\n", f_times);
+
+    int array_size = sizeof(record)/sizeof(record[0]);
+    for(int i=0; i<array_size; i++){
+        if(record[i].y == local_datetime('y')
+        && record[i].M == local_datetime('M')
+        && record[i].d == local_datetime('d')
+        && record[i].h == local_datetime('h')
+        && record[i].m == local_datetime('m')
+        && record[i].clicked != 1){
+            printf("WYDARZENIE! %s\n", record[i].description);
+            event_alert(i);
         }
     }
+
     return G_SOURCE_CONTINUE;
 }
 
 int load_from_file(){
-    //pobiera dane z pliku i umieszcza je w strukturze
-    char line[BUFSIZE];
-    int count = 0; //licznik dla wydarzen (1 linia = 1 wydarzenie)
+    char line[FILESIZE];
+    int count = 0;  //number of records
 
-    //temp
+    //temporary variables
     char *item;
     char str_date[10];
     char str_time[5];
@@ -263,10 +312,10 @@ int load_from_file(){
 
     filehandle = fopen("baza_clicked.txt", "r");
     if(filehandle){
-        while(fgets(line, BUFSIZE, filehandle)){
+        while(fgets(line, FILESIZE, filehandle)){
             //clicked
             item = strtok(line, "\n");
-            record[count].displayed = atoi(item);
+            record[count].clicked = atoi(item);
 
             count++;
         }
@@ -276,19 +325,19 @@ int load_from_file(){
         exit(EXIT_FAILURE);
     }
     fclose(filehandle);
-
     line[0] = '\0';
     count = 0;
+
 
     filehandle = fopen("baza_proba.txt","r");
 
     if(filehandle){
-        while(fgets(line, BUFSIZE, filehandle)){
+        while(fgets(line, FILESIZE, filehandle)){
             str_date[0] = '\0';
             str_time[0] = '\0';
             str_temp[0] = '\0';
 
-            //data YYYY/MM/HH
+            //DATE YYYY/MM/HH
             item = strtok(line, " ");
             record[count].y = atoi(item);
             strcat(str_date, item);
@@ -323,7 +372,7 @@ int load_from_file(){
 
             strcpy(record[count].date, str_date);
 
-            //czas HH:MM
+            //TIME HH:MM
             item = strtok(NULL, " ");
             record[count].h = atoi(item);
 
@@ -352,7 +401,7 @@ int load_from_file(){
 
             strcpy(record[count].time, str_time);
 
-            //opis wydarzenia
+            //DESCRIPTION
             item = strtok(NULL, "\n");
             strcpy(record[count].description, item);
 
@@ -364,18 +413,17 @@ int load_from_file(){
         exit(EXIT_FAILURE);
     }
 
-    /*
-    for(int i=0; i<count; i++){
+    for(int i=0; i<=count-1; i++){
         printf("%d, %d, %d, %d, %d, %d\n", record[i].clicked, record[i].y, record[i].M, record[i].d, record[i].h, record[i].m);
         puts(record[i].date);
         puts(record[i].time);
         puts(record[i].description);
+        printf("%d\n", i);
     }
-    */
+
 
     fclose(filehandle);
 
-    num_of_entries = count;
     return count;
 }
 
@@ -385,19 +433,32 @@ GtkTreeModel *create_model(void){
     GtkListStore *store;
     GtkTreeIter iter;
 
-    //list store
+//create list store
     store = gtk_list_store_new(NUM_COLUMNS,
                                G_TYPE_STRING,
                                G_TYPE_STRING,
                                G_TYPE_STRING);
+ //                              G_TYPE_BOOLEAN,
+ //                              G_TYPE_BOOLEAN);
 
     int count = load_from_file();
-    for (i=0; i<count; i++){ //tutaj
+    for (i=0; i<count; i++){
+
+    /*
+        gboolean sensitive;
+
+        if (i==3)
+            sensitive = FALSE;
+        else
+            sensitive = TRUE;
+    */
         gtk_list_store_append(store, &iter);
         gtk_list_store_set(store, &iter,
                            COLUMN_DATE, record[i].date,
                            COLUMN_TIME, record[i].time,
                            COLUMN_DESCRIPTION, record[i].description,
+                           //COLUMN_ACTIVE, FALSE,
+                           //COLUMN_SENSITIVE, sensitive,
                            -1);
     }
 
@@ -444,11 +505,12 @@ void add_columns(GtkTreeView *treeview){
 
     gtk_tree_view_column_set_sort_column_id(column, COLUMN_DESCRIPTION);
     gtk_tree_view_append_column(treeview, column);
+
 }
 
 
 GdkPixbuf *create_pixbuf(const gchar *filename) {
-    //wczytywanie obrazow
+    //image loading library
     GdkPixbuf *pixbuf;
     GError *error = NULL;
     pixbuf = gdk_pixbuf_new_from_file(filename, &error);
@@ -462,13 +524,19 @@ GdkPixbuf *create_pixbuf(const gchar *filename) {
 }
 
 int find_in_struct(char *name_date, char *name_time, char *name_description){
-    //zwraca zwraca miejsce elementu w tablicy struktur
+// ????? co wlasciwie ja robie
         int j;
         for(j=0; j<=STRUCTSIZE; j++){
             if((strcmp(record[j].description, name_description)==0)
             && (strcmp(record[j].time, name_time)==0)
             && (strcmp(record[j].date, name_date)==0)){
+                //printf("%s %s OK\n\n", record[j].description, name_description);
+                //printf("J: *%d*\n\n", j);
                 break;
+
+            }
+            else{
+                //printf("%s %s NIE\n\n", record[j].description, name_description);
             }
         }
         return j;
@@ -476,7 +544,6 @@ int find_in_struct(char *name_date, char *name_time, char *name_description){
 
 
 void delete_entry(GtkWidget *widget, gpointer data){
-    //usuwanie wybranego wydarzenia
     GtkTreeIter iter;
     GtkTreeView *treeview = (GtkTreeView*)data;
     GtkTreeModel *model = gtk_tree_view_get_model(treeview);
@@ -493,25 +560,30 @@ void delete_entry(GtkWidget *widget, gpointer data){
         gtk_tree_model_get(model, &iter, COLUMN_TIME, &name_time, -1);
         gtk_tree_model_get(model, &iter, COLUMN_DESCRIPTION, &name_description, -1);
 
+
         GtkTreePath *path;
 
         path = gtk_tree_model_get_path(model, &iter);
         i = gtk_tree_path_get_indices(path)[0];
         gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
 
-        //znajdz w tablicy
+
+        //printf("selected row is %s %s %s\n", name_date, name_time, name_description);
         int line = find_in_struct(name_date, name_time, name_description);
+        //printf("FUN: %d\n", line);
 
         //czyszczenie tablicy rekordow:
         memset(record, 0, sizeof(record));
 
-        //usun z pliku
+        //tutaj usuwanie z pliku
         delete_line(line, "baza_proba.txt");
         delete_line(line, "baza_clicked.txt");
 
-        //ponowne wypelnij tablice struktur:
+
+        //ponowne wypelnianie tablicy struktur:
         load_from_file();
 
+        //wypelnianie na nowo
 
         gtk_tree_path_free(path);
     }
@@ -519,7 +591,6 @@ void delete_entry(GtkWidget *widget, gpointer data){
 
 
 void show_new_entry(GtkTreeView *treeview){
-    //aktualizacja i wyswietlenie nowego elementu
     event_struct foo;
     GtkTreeIter current, iter;
     GtkTreePath *path;
@@ -537,23 +608,23 @@ void show_new_entry(GtkTreeView *treeview){
                        COLUMN_DESCRIPTION, &record[load_all-1].description,
                        -1);
 
-    path = gtk_tree_model_get_path(model, &iter);
-    column = gtk_tree_view_get_column(treeview, 0);
-    //focus na nowym elemencie
-    gtk_tree_view_set_cursor(treeview, path, column, FALSE);
+  //Move focus to the new row
+  path = gtk_tree_model_get_path(model, &iter);
+  column = gtk_tree_view_get_column(treeview, 0);
+  gtk_tree_view_set_cursor(treeview, path, column, FALSE);
 
-    gtk_tree_path_free(path);
+  gtk_tree_path_free(path);
+
 }
 
 
 void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
-    //walidacja nowego wydarzenia i dopisanie do bazy
     if(response_id==-5){
         const char *describe, *y, *M, *d, *h, *m;
 
         describe = gtk_entry_get_text(GTK_ENTRY(entry_describe));
         if(strlen(describe)==0){
-            describe = " ";  //nienazwane wydarzenie
+            describe = " ";  //Nienazwane wydarzenie
         }
 
         y = gtk_entry_get_text(GTK_ENTRY(entry_year));
@@ -564,7 +635,7 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
         m = gtk_entry_get_text(GTK_ENTRY(entry_minutes));
 
 
-        if((validate_date(y, M, d)==0) && (check_localdatetime(atoi(y), atoi(M), atoi(d), atoi(h), atoi(m)))==0){
+        if((validate_date(y, M, d)==0) && (check_localdatetime(y, M, d, h, m))==0){
 
             filehandle = fopen("baza_proba.txt", "a");
             filehandle2 = fopen("baza_clicked.txt", "a");
@@ -580,21 +651,21 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
                 fprintf(filehandle2, "0\n");
                 fclose(filehandle2);
 
-                //zaktualizuj
                 show_new_entry(GTK_TREE_VIEW(treeview));
-
-                //notification("Przypominacz:", "nowe wydarzenie zostało zapisane.", "emblem-default");
+                notification("Przypominacz:", "nowe wydarzenie zostało zapisane.", "emblem-default");
             }
         }
         else{
             notification("Wydarzenie nie mogło zostać zapisane,", "ponieważ podano nieprawidłową datę lub czas.", "emblem-important");
         }
     }
+    else{
+        puts("Anulowano");
+    }
 }
 
 
 void show_add_toolb(GtkWindow *parent, gpointer user_data){
-    //dodaj w toolbarze
     GtkWidget *content_area;
     GtkWidget *dialog;
     GtkWidget *hbox;
@@ -606,7 +677,7 @@ void show_add_toolb(GtkWindow *parent, gpointer user_data){
 
     GtkDialogFlags flags = GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT;
 
-    dialog = gtk_dialog_new_with_buttons("Dodaj", parent,
+    dialog = gtk_dialog_new_with_buttons("Dodaj", parent, //parent ?= GTK_WINDOW(window)
                                          flags,
                                          ("OK"), GTK_RESPONSE_OK,
                                          "Anuluj", GTK_RESPONSE_CANCEL,
@@ -624,11 +695,15 @@ void show_add_toolb(GtkWindow *parent, gpointer user_data){
     gtk_grid_set_column_spacing(GTK_GRID(table), 25); //kolumnami
     gtk_box_pack_start(GTK_BOX(hbox), table, TRUE, TRUE, 0);
 
+
     //wpis
     label = gtk_label_new("Wydarzenie:");
     gtk_grid_attach(GTK_GRID(table), label, 0, 0, 1, 1);
     entry_describe = gtk_entry_new();
     gtk_grid_attach(GTK_GRID(table), entry_describe, 1, 0, 4, 1);
+
+    //const gchar *wydarzenie = gtk_entry_get_text(GTK_ENTRY(local_entry_describe));
+    //gtk_entry_set_text(GTK_ENTRY(local_entry), gtk_entry_get_text(GTK_ENTRY(entry)));
 
     //dzien
     adjustment = gtk_adjustment_new(local_datetime('d'), 1, 32, 1, 1, 1);
@@ -679,14 +754,15 @@ void show_add_toolb(GtkWindow *parent, gpointer user_data){
     response = gtk_dialog_run(GTK_DIALOG(dialog));
 
     gtk_widget_destroy(dialog);
+
 }
 
 
 void show_edit_toolb(GtkWindow *parent, gchar *message){
-    //edytuj w toolbarze
     GtkWidget *dialog, *label, *content_area;
     GtkDialogFlags flags;
 
+    //Create the widgets
     flags = GTK_DIALOG_DESTROY_WITH_PARENT;
     dialog = gtk_dialog_new_with_buttons("Message", parent, flags, ("OK"),
                                          GTK_RESPONSE_NONE, NULL);
@@ -694,23 +770,23 @@ void show_edit_toolb(GtkWindow *parent, gchar *message){
     content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     label = gtk_label_new(message);
 
-
+    //Ensure that the dialog box is destroyed when the user responds
     g_signal_connect_swapped(dialog, "response",
                              G_CALLBACK(gtk_widget_destroy), dialog);
 
+    //Add the label, and show everything we’ve added
     gtk_container_add(GTK_CONTAINER(content_area), label);
     gtk_widget_show_all(dialog);
+
 }
 
 
 void show_options_toolb(GtkWindow *parent, char *message){
-    //opcje w toolbarze, nieskonczone
 	notification("Opcje:", "jeszcze nie zaimplementowano", "face-worried-symbolic");
 }
 
 
 void show_info_toolb(GtkWidget *widget, gpointer data){
-    //info w toolbarze
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file("ikona.jpeg", NULL);
     GtkWidget *dialog = gtk_about_dialog_new();
 
@@ -726,6 +802,7 @@ void show_info_toolb(GtkWidget *widget, gpointer data){
     g_object_unref(pixbuf), pixbuf = NULL;
     gtk_dialog_run(GTK_DIALOG (dialog));
     gtk_widget_destroy(dialog);
+
 }
 
 
@@ -748,6 +825,7 @@ int main(int argc, char *argv[]){
     GtkWidget *sw;
     GtkWidget *label;
     GtkTreeModel *model;
+//    GtkWidget *treeview;
 
     gtk_init(&argc, &argv);
 
@@ -817,10 +895,10 @@ int main(int argc, char *argv[]){
     gtk_box_pack_start(GTK_BOX(box), sw, TRUE, TRUE, 0);
 
 
-    //tree model
+    //create tree model
     model = create_model();
 
-    //tree view
+    //create tree view
     treeview = gtk_tree_view_new_with_model(model);
     gtk_tree_view_set_search_column(GTK_TREE_VIEW (treeview), COLUMN_DESCRIPTION);
 
@@ -828,15 +906,15 @@ int main(int argc, char *argv[]){
 
     gtk_container_add(GTK_CONTAINER(sw), treeview);
 
-    //kolumny w tree view
+    //add columns to the tree view
     add_columns(GTK_TREE_VIEW(treeview));
 
-    //co 5 sekund sprawdza czy zapisane wydarzenie == czas lokalny
-    g_timeout_add(5000, check_events, NULL);
+    //co 5 sekund sprawdza czy zapisane wydarzenie == localdatetime
+    g_timeout_add(5000, on_timeout, NULL);
 
     //sygnały
     g_signal_connect(G_OBJECT(add_toolb), "clicked",
-                     G_CALLBACK(show_add_toolb), NULL);
+                     G_CALLBACK(show_add_toolb), NULL);// window
 
     g_signal_connect(G_OBJECT(edit_toolb), "clicked",
                      G_CALLBACK(show_edit_toolb), NULL);
@@ -848,7 +926,7 @@ int main(int argc, char *argv[]){
                      G_CALLBACK(show_options_toolb), NULL);
 
     g_signal_connect(G_OBJECT(info_toolb), "clicked",
-                     G_CALLBACK(show_info_toolb), NULL);
+                     G_CALLBACK(show_info_toolb), NULL);// (gpointer) window);
 
     g_signal_connect(G_OBJECT(exit_toolb), "clicked",
                      G_CALLBACK(gtk_main_quit), NULL);
