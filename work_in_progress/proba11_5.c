@@ -10,9 +10,9 @@
 #define FILE_DISPLAYED "displayed.txt"
 
 
-GtkWidget *window, *treeview;
+GtkWidget *treeview;
 GtkWidget *entry_describe, *entry_day, *entry_month, *entry_year, *entry_hour, *entry_minutes;
-unsigned num_of_entries;  //aktualizowane przez load_from_file()
+int num_of_entries;  //aktualizowane przez load_from_file()
 
 
 typedef struct{
@@ -115,11 +115,11 @@ int delete_line_in_file(int line, char *path){
     rewind(source_file);
 
     char buffer[BUFSIZE];
-    unsigned count = 0;
+    int count = 0;
 
     while((fgets(buffer, BUFSIZE, source_file)) != NULL)
     {
-        if (line != count){  //to nie jest poszukiwana linia
+        if (line != count){ //to nie jest poszukiwana linia
             fputs(buffer, temp_file);
         }
         count++;
@@ -178,7 +178,7 @@ int replace_line_in_file(int line, char *path, char *new_info){
     FILE *temp_file;
 
     char buffer[BUFSIZE];
-    unsigned count = 0;
+    int count = 0;
 
     source_file  = fopen(path, "r");
     temp_file = fopen("temp_rplc.tmp", "w");
@@ -238,27 +238,21 @@ static gboolean check_events(gpointer user_data){
             && record[i].h == local_datetime('h')
             && record[i].m == local_datetime('m')){
                 event_alert(i, "Nadchodzące wydarzenie:");
-                puts("nadchodzące wydarzenie");
             }
 
             //wydarzenie z przeszlosci, ktore nie zostalo odczytane
-            else if(check_localdatetime(record[i].y, record[i].M, record[i].d, record[i].h, record[i].m) == 1){
+            if(check_localdatetime(record[i].y, record[i].M, record[i].d, record[i].h, record[i].m) == 1){
                 event_alert(i, "Nieodczytane wydarzenie:");
-                puts("nieodczytane wydarzenie");
-            }
-            else{
-                puts("CZEKAJ!");
             }
         }
     }
     return G_SOURCE_CONTINUE;
 }
 
-
 int load_from_file(){
     //pobiera dane z pliku i umieszcza je w strukturze
     char line[BUFSIZE];
-    int count = 0;  //licznik dla wydarzen (1 linia = 1 wydarzenie)
+    int count = 0; //licznik dla wydarzen (1 linia = 1 wydarzenie)
 
     //temp
     char *item;
@@ -271,7 +265,7 @@ int load_from_file(){
 
     if(filehandle){
         while(fgets(line, BUFSIZE, filehandle)){
-            //displayed
+            //clicked
             item = strtok(line, "\n");
             record[count].displayed = atoi(item);
 
@@ -376,16 +370,14 @@ int load_from_file(){
         exit(EXIT_FAILURE);
     }
 
-/*
+
     for(int i=0; i<count; i++){
-        printf("displayed: %d, h: %d, M: %d, d: %d, h: %d, m: %d\n",
-               record[i].displayed, record[i].y, record[i].M, record[i].d, record[i].h, record[i].m);
+        printf("%d, %d, %d, %d, %d, %d\n", record[i].displayed, record[i].y, record[i].M, record[i].d, record[i].h, record[i].m);
         puts(record[i].date);
         puts(record[i].time);
         puts(record[i].description);
-        puts("~~~");
     }
-*/
+
 
     fclose(filehandle);
 
@@ -405,11 +397,8 @@ GtkTreeModel *create_model(void){
                                G_TYPE_STRING,
                                G_TYPE_STRING);
 
-    //pobierz
-    load_from_file();
-
-    //wypelnij
-    for(i=0; i<num_of_entries; i++){
+    int count = load_from_file();
+    for (i=0; i<count; i++){ //tutaj
         gtk_list_store_append(store, &iter);
         gtk_list_store_set(store, &iter,
                            COLUMN_DATE, record[i].date,
@@ -479,16 +468,16 @@ GdkPixbuf *create_pixbuf(const gchar *filename) {
 }
 
 int find_in_struct(char *name_date, char *name_time, char *name_description){
-    //zwraca miejsce elementu w tablicy struktur
-    int i;
-    for(i=0; i<=ARRAYSIZE; i++){
-        if((strcmp(record[i].description, name_description)==0)
-        && (strcmp(record[i].time, name_time)==0)
-        && (strcmp(record[i].date, name_date)==0)){
-            break;
+    //zwraca zwraca miejsce elementu w tablicy struktur
+        int j;
+        for(j=0; j<=ARRAYSIZE; j++){
+            if((strcmp(record[j].description, name_description)==0)
+            && (strcmp(record[j].time, name_time)==0)
+            && (strcmp(record[j].date, name_date)==0)){
+                break;
+            }
         }
-    }
-    return i;
+        return j;
 }
 
 
@@ -529,6 +518,7 @@ void delete_entry(GtkWidget *widget, gpointer data){
         //ponowne wypelnij tablice struktur:
         load_from_file();
 
+
         gtk_tree_path_free(path);
     }
 }
@@ -542,17 +532,15 @@ void show_new_entry(GtkTreeView *treeview){
     GtkTreeModel *model;
     GtkTreeViewColumn *column;
 
-    //zaktualizuj
-    load_from_file();
-
+    int load_all = load_from_file();
     model = gtk_tree_view_get_model(treeview);
 
     gtk_list_store_insert(GTK_LIST_STORE(model), &iter, -1);
 
     gtk_list_store_set(GTK_LIST_STORE (model), &iter,
-                       COLUMN_DATE, &record[num_of_entries-1].date,
-                       COLUMN_TIME, &record[num_of_entries-1].time,
-                       COLUMN_DESCRIPTION, &record[num_of_entries-1].description,
+                       COLUMN_DATE, &record[load_all-1].date,
+                       COLUMN_TIME, &record[load_all-1].time,
+                       COLUMN_DESCRIPTION, &record[load_all-1].description,
                        -1);
 
     path = gtk_tree_model_get_path(model, &iter);
@@ -569,16 +557,20 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
     if(response_id==-5){
         const char *describe, *y, *M, *d, *h, *m;
         char describe_cut[100];
-        unsigned flag = 0;
+        int flag = 0;
 
         describe = gtk_entry_get_text(GTK_ENTRY(entry_describe));
         if(strlen(describe)==0){
             describe = " ";  //nienazwane wydarzenie
         }
         else if(strlen(describe) >= sizeof(record->description)){
+            puts("elo");
+            printf("size desc %lu\n", sizeof(record->description));
             strncpy(describe_cut, describe, sizeof(record->description));
             describe_cut[sizeof(record->description)] = 0;
+            puts("po elo");
             flag = 1;
+            printf("NAPIS:::: %zu\n", strlen(describe_cut));
         }
 
         y = gtk_entry_get_text(GTK_ENTRY(entry_year));
@@ -628,8 +620,6 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
 
 void show_add_toolb(GtkWindow *parent, gpointer user_data){
     //dodaj w toolbarze
-    parent = GTK_WINDOW(window);
-
     GtkWidget *content_area;
     GtkWidget *dialog;
     GtkWidget *hbox;
@@ -647,7 +637,6 @@ void show_add_toolb(GtkWindow *parent, gpointer user_data){
                                          "Anuluj", GTK_RESPONSE_CANCEL,
                                           NULL);
 
-    gtk_window_set_transient_for(GTK_WINDOW(dialog), parent);
     content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
@@ -740,7 +729,7 @@ void show_edit_toolb(GtkWindow *parent, gchar *message){
 
 
 void show_options_toolb(GtkWindow *parent, char *message){
-    //opcje w toolbarze
+    //opcje w toolbarze, nieskonczone
 	notification("Opcje:", "jeszcze nie zaimplementowano", "face-worried-symbolic");
 }
 
@@ -750,7 +739,6 @@ void show_info_toolb(GtkWidget *widget, gpointer data){
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file("ikona.jpeg", NULL);
     GtkWidget *dialog = gtk_about_dialog_new();
 
-    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window));
     gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(dialog), "Przypominacz");
     gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(dialog), "v0.1");
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(dialog),"autor: Ewa Namysł");
@@ -767,10 +755,11 @@ void show_info_toolb(GtkWidget *widget, gpointer data){
 
 
 int main(int argc, char *argv[]){
+    GtkWidget *window;
+    GdkPixbuf *icon;
+
     GtkWidget *box;
-
     GtkWidget *toolbar;
-
     GtkToolItem *add_toolb;
     GtkToolItem *edit_toolb;
     GtkToolItem *delete_toolb;
@@ -783,10 +772,7 @@ int main(int argc, char *argv[]){
     GtkWidget *vbox;
     GtkWidget *sw;
     GtkWidget *label;
-
     GtkTreeModel *model;
-
-    GdkPixbuf *icon;
 
     gtk_init(&argc, &argv);
 
