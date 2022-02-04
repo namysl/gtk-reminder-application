@@ -6,6 +6,8 @@
 
 #define STRUCTSIZE 50
 #define BUFSIZE 1000
+#define FILE_DATA "data.txt"
+#define FILE_DISPLAYED "displayed.txt"
 
 
 FILE *filehandle;
@@ -354,8 +356,18 @@ int load_from_file(){
 
             //opis wydarzenia
             item = strtok(NULL, "\n");
-            strcpy(record[count].description, item);
 
+            printf("STRLEN: %zu\n", strlen(item));
+            printf("SIZESTRUCT: %lu\n", sizeof(record->description));
+
+            if(strlen(item) < sizeof(record->description)){
+                strcpy(record[count].description, item);
+            }
+            else{
+                memcpy(record[count].description, item, sizeof(record->description)-1);
+            }
+
+            printf("potem: %zu\n", strlen(record[count].description));
             count++;
         }
     }
@@ -364,14 +376,14 @@ int load_from_file(){
         exit(EXIT_FAILURE);
     }
 
-    /*
+
     for(int i=0; i<count; i++){
-        printf("%d, %d, %d, %d, %d, %d\n", record[i].clicked, record[i].y, record[i].M, record[i].d, record[i].h, record[i].m);
+        printf("%d, %d, %d, %d, %d, %d\n", record[i].displayed, record[i].y, record[i].M, record[i].d, record[i].h, record[i].m);
         puts(record[i].date);
         puts(record[i].time);
         puts(record[i].description);
     }
-    */
+
 
     fclose(filehandle);
 
@@ -550,10 +562,21 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
     //walidacja nowego wydarzenia i dopisanie do bazy
     if(response_id==-5){
         const char *describe, *y, *M, *d, *h, *m;
+        char describe_cut[100];
+        int flag = 0;
 
         describe = gtk_entry_get_text(GTK_ENTRY(entry_describe));
         if(strlen(describe)==0){
             describe = " ";  //nienazwane wydarzenie
+        }
+        else if(strlen(describe) >= sizeof(record->description)){
+            puts("elo");
+            printf("size desc %lu\n", sizeof(record->description));
+            strncpy(describe_cut, describe, sizeof(record->description));
+            describe_cut[sizeof(record->description)] = 0;
+            puts("po elo");
+            flag = 1;
+            printf("NAPIS:::: %zu\n", strlen(describe_cut));
         }
 
         y = gtk_entry_get_text(GTK_ENTRY(entry_year));
@@ -574,7 +597,13 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
                 exit(EXIT_FAILURE);
             }
             else{
-                fprintf(filehandle, "%s %s %s %s %s %s\n", y, M, d, h, m, describe);
+                if(flag==1){
+                    fprintf(filehandle, "%s %s %s %s %s %s\n", y, M, d, h, m, describe_cut);
+                }
+                else{
+                    fprintf(filehandle, "%s %s %s %s %s %s\n", y, M, d, h, m, describe);
+                }
+
                 fclose(filehandle);
 
                 fprintf(filehandle2, "0\n");
