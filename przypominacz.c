@@ -6,8 +6,8 @@
 
 #define ARRAYSIZE 50
 #define BUFSIZE 2000
-#define FILE_DATA "data.txt"
-#define FILE_DISPLAYED "displayed.txt"
+#define FILE_DATA "db/data.txt"
+#define FILE_DISPLAYED "db/displayed.txt"
 
 
 GtkWidget *window, *treeview;
@@ -942,7 +942,7 @@ void show_options_toolb(GtkWindow *parent, char *message){
 
 void show_info_toolb(GtkWidget *widget, gpointer data){
     //info w toolbarze
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file("icon.jpg", NULL);
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file("img/icon.jpg", NULL);
     GtkWidget *dialog = gtk_about_dialog_new();
 
     gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window));
@@ -993,7 +993,7 @@ int main(int argc, char *argv[]){
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     //ikona programu
-    icon = create_pixbuf("icon.jpg");
+    icon = create_pixbuf("img/icon.jpg");
     gtk_window_set_icon(GTK_WINDOW(window), icon);
 
     //container dla paska narzedzi

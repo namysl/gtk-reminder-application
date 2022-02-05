@@ -39,3 +39,5 @@ Ewa Namysł
 	
 
 3. Testowano na Ubuntu 20.04
+
+4. W katalogu dodałam też skrypt do kompilacji i instalacji bibliotek
