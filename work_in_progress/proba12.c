@@ -69,7 +69,6 @@ int local_datetime(char choice){
             result = tm.tm_min;
             break;
     }
-
     return result;
 }
 
@@ -137,38 +136,50 @@ int delete_line_in_file(int line, char *path){
 
 int check_localdatetime(int y, int M, int d, int h, int m){
     //sprawdza podany czas wzgledem czasu lokalnego
-    //zwraca 1, jesli sprawdzany czas jest starszy od lokalnego
-    int value = 1;
+    //zwraca 0, jesli sprawdzany czas == localdatetime
+    //zwraca 1, jesli sprawdzany czas jest z przeszlosci
+    //zwraca 2, jesli sprawdzany czas jest z przyszlosci
+    int local_y = local_datetime('y');
+    int local_M = local_datetime('M');
+    int local_d = local_datetime('d');
+    int local_h = local_datetime('h');
+    int local_m = local_datetime('m');
 
-    //przypadku y < local_datetime('y') nie da sie wprowadzic z poziomu gui
-    if(y > local_datetime('y')){
-       value = 0;
+    if(y < local_y){
+       return 1;
     }
-    else if(y == local_datetime('y')){
-        if (M < local_datetime('M')){
-            value = 1;
+    else if(y > local_y){
+       return 2;
+    }
+    else{  //y == local_y
+        if(M<local_M){
+            return 1;
         }
-        else if(M > local_datetime('M')){
-            value = 0;
+        else if(M>local_M){
+            return 2;
         }
-        else{  // MM == local MM
-            if(d < local_datetime('d')){
-                value = 1;
-            }
-            else if(d > local_datetime('d')){
-                value = 0;
-            }
-            else{ //dd == local dd
-                if(m < local_datetime('m')){
-                    value = 1;
-                }
-                else{ //mm <= local mm
-                    value = 0;
-                }
-            }
+        else if(d<local_d){
+            return 1;
+        }
+        else if(d>local_d){
+            return 2;
+        }
+        else if(h<local_h){
+            return 1;
+        }
+        else if(h>local_h){
+            return 2;
+        }
+        else if(m<local_m){
+            return 1;
+        }
+        else if(m>local_m){
+            return 2;
+        }
+        else{  //m == local_m
+            return 0;
         }
     }
-    return value;
 }
 
 
@@ -223,7 +234,6 @@ void event_alert(unsigned i, char *text){
         record[i].displayed = 1;
         replace_line_in_file(i, FILE_DISPLAYED, "1\n");  //0 -> 1
     }
-
     gtk_widget_destroy(event);
 }
 
@@ -238,16 +248,10 @@ static gboolean check_events(gpointer user_data){
             && record[i].h == local_datetime('h')
             && record[i].m == local_datetime('m')){
                 event_alert(i, "Nadchodzące wydarzenie:");
-                puts("nadchodzące wydarzenie");
             }
-
             //wydarzenie z przeszlosci, ktore nie zostalo odczytane
             else if(check_localdatetime(record[i].y, record[i].M, record[i].d, record[i].h, record[i].m) == 1){
                 event_alert(i, "Nieodczytane wydarzenie:");
-                puts("nieodczytane wydarzenie");
-            }
-            else{
-                puts("CZEKAJ!");
             }
         }
     }
@@ -417,7 +421,6 @@ GtkTreeModel *create_model(void){
                            COLUMN_DESCRIPTION, record[i].description,
                            -1);
     }
-
     return GTK_TREE_MODEL(store);
 }
 
@@ -474,7 +477,6 @@ GdkPixbuf *create_pixbuf(const gchar *filename) {
         fprintf(stderr, "%s\n", error->message);
         g_error_free(error);
     }
-
     return pixbuf;
 }
 
@@ -591,7 +593,7 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
         FILE *filehandle1;
         FILE *filehandle2;
 
-        if((validate_date(y, M, d)==0) && (check_localdatetime(atoi(y), atoi(M), atoi(d), atoi(h), atoi(m)))==0){
+        if((validate_date(y, M, d)==0) && (check_localdatetime(atoi(y), atoi(M), atoi(d), atoi(h), atoi(m)))==2){
 
             filehandle1 = fopen(FILE_DATA, "a");
             filehandle2 = fopen(FILE_DISPLAYED, "a");
