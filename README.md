@@ -1,1 +1,1 @@
-# linux-gtk-reminder
+# gtk-reminder
