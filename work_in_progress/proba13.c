@@ -5,7 +5,7 @@
 #include <libnotify/notify.h>
 
 #define ARRAYSIZE 50
-#define BUFSIZE 1000
+#define BUFSIZE 2000
 #define FILE_DATA "data.txt"
 #define FILE_DISPLAYED "displayed.txt"
 
@@ -237,7 +237,7 @@ void event_alert(unsigned i, char *text){
     gtk_widget_destroy(event);
 }
 
-static gboolean check_events(gpointer user_data){
+static gboolean check_events(gpointer data){
     //sprawdza status wydarzen
     for(int i=0; i<num_of_entries; i++){
         if(record[i].displayed != 1){
@@ -515,7 +515,6 @@ void delete_entry(GtkWidget *widget, gpointer data){
         GtkTreePath *path;
 
         path = gtk_tree_model_get_path(model, &iter);
-        i = gtk_tree_path_get_indices(path)[0];
         gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
 
         //znajdz w tablicy
@@ -537,9 +536,9 @@ void delete_entry(GtkWidget *widget, gpointer data){
 
 
 void show_new_entry(GtkTreeView *treeview){
-    //aktualizacja i wyswietlenie nowego elementu
+    //aktualizacja list store i wyswietlenie nowego elementu
     event_struct foo;
-    GtkTreeIter current, iter;
+    GtkTreeIter iter;
     GtkTreePath *path;
     GtkTreeModel *model;
     GtkTreeViewColumn *column;
@@ -628,7 +627,7 @@ void add_new_entry(GtkWidget *widget, gint response_id, gpointer data){
 }
 
 
-void show_add_toolb(GtkWindow *parent, gpointer user_data){
+void show_add_toolb(GtkWindow *parent, gpointer data){
     //dodaj w toolbarze
     parent = GTK_WINDOW(window);
 
@@ -686,7 +685,7 @@ void show_add_toolb(GtkWindow *parent, gpointer user_data){
 
     //rok
     adjustment = gtk_adjustment_new(local_datetime('y'), local_datetime('y'),
-                                    local_datetime('y')+10, 1, 1, 1);
+                                    local_datetime('y')+11, 1, 1, 1);
 
     label = gtk_label_new("Rok:");
     gtk_grid_attach(GTK_GRID(table), label, 3, 1, 1, 1);
@@ -720,24 +719,215 @@ void show_add_toolb(GtkWindow *parent, gpointer user_data){
 }
 
 
-void show_edit_toolb(GtkWindow *parent, gchar *message){
+void show_edited_entry(GtkTreeView *treeview, int num){
+    //aktualizacja i wyswietlenie edytowanego elementu
+    event_struct foo;
+    GtkTreeIter iter;
+    GtkTreePath *path;
+    GtkTreeModel *model;
+    GtkTreeViewColumn *column;
+
+    //zaktualizuj
+    load_from_file();
+
+    model = gtk_tree_view_get_model(treeview);
+
+    if (gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(model), &iter, NULL, num))
+     {
+       gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+     }
+
+    gtk_list_store_insert(GTK_LIST_STORE(model), &iter, num);
+
+    gtk_list_store_set(GTK_LIST_STORE (model), &iter,
+                       COLUMN_DATE, &record[num].date,
+                       COLUMN_TIME, &record[num].time,
+                       COLUMN_DESCRIPTION, &record[num].description,
+                       -1);
+
+    path = gtk_tree_model_get_path(model, &iter);
+
+    column = gtk_tree_view_get_column(treeview, 0);
+    //focus na zmodyfikowanym elemencie
+    gtk_tree_view_set_cursor(treeview, path, column, FALSE);
+
+    gtk_tree_path_free(path);
+}
+
+
+void edit_entry(GtkWidget *widget, gint response_id, gpointer data){
+    //walidacja daty i edycja bazy, aktualizacja widoku
+    GtkTreeIter iter;
+
+    if(response_id==-5){
+        const char *describe, *y, *M, *d, *h, *m;
+        char describe_cut[100];
+        char temp[200];
+        unsigned flag = 0;
+        int *num = data;
+
+        describe = gtk_entry_get_text(GTK_ENTRY(entry_describe));
+        if(strlen(describe)==0){
+            describe = record[*num].description;  //nazwa wydarzenia pozostala niezmieniona
+        }
+        else if(strlen(describe) >= sizeof(record->description)){
+            strncpy(describe_cut, describe, sizeof(record->description));
+            describe_cut[sizeof(record->description)] = 0;
+            flag = 1;
+        }
+
+        y = gtk_entry_get_text(GTK_ENTRY(entry_year));
+        M = gtk_entry_get_text(GTK_ENTRY(entry_month));
+        d = gtk_entry_get_text(GTK_ENTRY(entry_day));
+
+        h = gtk_entry_get_text(GTK_ENTRY(entry_hour));
+        m = gtk_entry_get_text(GTK_ENTRY(entry_minutes));
+
+        if((validate_date(y, M, d)==0) && (check_localdatetime(atoi(y), atoi(M), atoi(d), atoi(h), atoi(m)))==2){
+            if(flag==1){
+                snprintf(temp, sizeof(temp), "%s %s %s %s %s %s\n", y, M, d, h, m, describe_cut);
+            }
+            else{
+                snprintf(temp, sizeof(temp), "%s %s %s %s %s %s\n", y, M, d, h, m, describe);
+            }
+
+            //wyczysc
+            memset(record, 0, sizeof(record));
+
+            //zamien
+            replace_line_in_file(*num, FILE_DATA, temp);
+            replace_line_in_file(*num, FILE_DISPLAYED, "0\n");
+
+            //wypelnij i pokaz
+            show_edited_entry(GTK_TREE_VIEW(treeview), *num);
+
+            //notification("Przypominacz:", "wydarzenie zostało zmodyfikowane.", "emblem-default");
+        }
+
+        else{
+            notification("Wydarzenie nie mogło zostać zmodyfikowane,", "ponieważ podano nieprawidłową datę lub czas.", "emblem-important");
+        }
+    }
+}
+
+void show_edit_toolb(GtkWindow *parent, int line, gpointer data){
     //edytuj w toolbarze
-    GtkWidget *dialog, *label, *content_area;
-    GtkDialogFlags flags;
+    parent = GTK_WINDOW(window);
 
-    flags = GTK_DIALOG_DESTROY_WITH_PARENT;
-    dialog = gtk_dialog_new_with_buttons("Message", parent, flags, ("OK"),
-                                         GTK_RESPONSE_NONE, NULL);
+    GtkWidget *content_area;
+    GtkWidget *dialog;
+    GtkWidget *hbox;
+    GtkWidget *table;
 
+    GtkWidget *label;
+    gint response;
+    GtkAdjustment *adjustment;
+
+    GtkDialogFlags flags = GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT;
+
+    dialog = gtk_dialog_new_with_buttons("Edytuj", parent,
+                                         flags,
+                                         ("OK"), GTK_RESPONSE_OK,
+                                         "Anuluj", GTK_RESPONSE_CANCEL,
+                                          NULL);
+
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), parent);
     content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    label = gtk_label_new(message);
+
+    hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_container_set_border_width(GTK_CONTAINER(hbox), 30);
+
+    gtk_box_pack_start(GTK_BOX(content_area), hbox, FALSE, FALSE, 0);
+
+    table = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(table), 20); //odleglosc od obiektow wierszami
+    gtk_grid_set_column_spacing(GTK_GRID(table), 25); //kolumnami
+    gtk_box_pack_start(GTK_BOX(hbox), table, TRUE, TRUE, 0);
+
+    //wpis
+    label = gtk_label_new("Wydarzenie:");
+    gtk_grid_attach(GTK_GRID(table), label, 0, 0, 1, 1);
+    entry_describe = gtk_entry_new();
+    gtk_grid_attach(GTK_GRID(table), entry_describe, 1, 0, 4, 1);
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry_describe), record[line].description);
+
+    //dzien
+    adjustment = gtk_adjustment_new(record[line].d, 1, 32, 1, 1, 1);
+
+    label = gtk_label_new("Dzień:");
+    gtk_grid_attach (GTK_GRID(table), label, 1, 1, 1, 1);
+    entry_day = gtk_spin_button_new(adjustment, 1.0, 0);
+    gtk_grid_attach (GTK_GRID(table), entry_day, 1, 2, 1, 1);
+
+    //miesiac
+    adjustment = gtk_adjustment_new(record[line].M, 1, 13, 1, 1, 1);
+
+    label = gtk_label_new("Miesiąc:");
+    gtk_grid_attach(GTK_GRID(table), label, 2, 1, 1, 1);
+    entry_month = gtk_spin_button_new(adjustment, 1.0, 0);
+    gtk_grid_attach(GTK_GRID(table), entry_month, 2, 2, 1, 1);
+
+    //rok
+    adjustment = gtk_adjustment_new(record[line].y, local_datetime('y'),
+                                    local_datetime('y')+11, 1, 1, 1);
+
+    label = gtk_label_new("Rok:");
+    gtk_grid_attach(GTK_GRID(table), label, 3, 1, 1, 1);
+    entry_year = gtk_spin_button_new(adjustment, 1.0, 0);
+    gtk_grid_attach(GTK_GRID(table), entry_year, 3, 2, 1, 1);
+
+    //godzina
+    adjustment = gtk_adjustment_new(record[line].h, 0, 24, 1, 1, 1);
+
+    label = gtk_label_new("Godzina:");
+    gtk_grid_attach (GTK_GRID (table), label, 1, 3, 1, 1);
+    entry_hour = gtk_spin_button_new(adjustment, 1.0, 0);
+    gtk_grid_attach (GTK_GRID (table), entry_hour, 1, 4, 1, 1);
+
+    //minuty
+    adjustment = gtk_adjustment_new(record[line].m, 0, 60, 1, 1, 1);
+
+    label = gtk_label_new("Minuty:");
+    gtk_grid_attach(GTK_GRID(table), label, 2, 3, 1, 1);
+    entry_minutes = gtk_spin_button_new(adjustment, 1.0, 0);
+    gtk_grid_attach(GTK_GRID(table), entry_minutes, 2, 4, 1, 1);
+
+    gtk_widget_grab_focus(entry_day);
+
+    g_signal_connect(dialog, "response",
+                     G_CALLBACK(edit_entry), &line);
+
+    gtk_widget_show_all(hbox);
+    response = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    gtk_widget_destroy(dialog);
+}
 
 
-    g_signal_connect_swapped(dialog, "response",
-                             G_CALLBACK(gtk_widget_destroy), dialog);
+void show_unedited_entry(GtkWidget *widget, gpointer data){
+    GtkTreeIter iter;
+    GtkTreeView *treeview = (GtkTreeView*)data;
+    GtkTreeModel *model = gtk_tree_view_get_model(treeview);
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(treeview);
 
-    gtk_container_add(GTK_CONTAINER(content_area), label);
-    gtk_widget_show_all(dialog);
+    char *name_date;
+    char *name_time;
+    char *name_description;
+
+    if (gtk_tree_selection_get_selected(selection, NULL, &iter)){
+
+        gtk_tree_model_get(model, &iter, COLUMN_DATE, &name_date, -1);
+        gtk_tree_model_get(model, &iter, COLUMN_TIME, &name_time, -1);
+        gtk_tree_model_get(model, &iter, COLUMN_DESCRIPTION, &name_description, -1);
+
+        GtkTreePath *path;
+        path = gtk_tree_model_get_path(model, &iter);
+        int line = find_in_struct(name_date, name_time, name_description);
+
+        show_edit_toolb(GTK_WINDOW(window), line, NULL);
+
+        gtk_tree_path_free(path);
+    }
 }
 
 
@@ -797,7 +987,7 @@ int main(int argc, char *argv[]){
     //tytul na pasku okna
     gtk_window_set_title(GTK_WINDOW(window), "Przypominacz");
     //rozmiar i umiejscowienie okna programu
-    gtk_window_set_default_size(GTK_WINDOW(window), 500, 300);
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     //ikona programu
     icon = create_pixbuf("ikona.jpeg");
@@ -880,7 +1070,7 @@ int main(int argc, char *argv[]){
                      G_CALLBACK(show_add_toolb), NULL);
 
     g_signal_connect(G_OBJECT(edit_toolb), "clicked",
-                     G_CALLBACK(show_edit_toolb), NULL);
+                     G_CALLBACK(show_unedited_entry), treeview);
 
     g_signal_connect(G_OBJECT(delete_toolb), "clicked",
                      G_CALLBACK(delete_entry), treeview);
