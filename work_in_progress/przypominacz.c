@@ -939,12 +939,12 @@ void show_options_toolb(GtkWindow *parent, char *message){
 
 void show_info_toolb(GtkWidget *widget, gpointer data){
     //info w toolbarze
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file("ikona.jpeg", NULL);
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file("icon.jpg", NULL);
     GtkWidget *dialog = gtk_about_dialog_new();
 
     gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(window));
     gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(dialog), "Przypominacz");
-    gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(dialog), "v0.1");
+    gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(dialog), "v1.0");
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(dialog),"autor: Ewa Namysł");
     gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(dialog),
                                   "Proste narzędzie do przypominania o nadchodzących wydarzeniach.");
@@ -990,7 +990,7 @@ int main(int argc, char *argv[]){
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     //ikona programu
-    icon = create_pixbuf("ikona.jpeg");
+    icon = create_pixbuf("icon.jpg");
     gtk_window_set_icon(GTK_WINDOW(window), icon);
 
     //container dla paska narzedzi
