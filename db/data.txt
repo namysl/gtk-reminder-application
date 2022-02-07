@@ -1,4 +1,4 @@
-2022 2 6 22 17 Wydarzenie 1
-2021 2 2 22 22 Wydarzenie z przeszłości
-2022 2 6 22 19 Wydarzenie 2
-1993 1 1 1 1 Odczytana przeszłość
+2022 1 5 12 15 First event
+2019 2 6 13 30 Second event
+2022 3 7 14 45 Third event
+2019 4 8 15 0 Fourth event
